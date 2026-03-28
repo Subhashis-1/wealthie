@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wealthie - AI Financial Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #00d4aa;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #888;
+            font-size: 1.1em;
+        }
+
+        .card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .upload-zone {
+            border: 2px dashed #00d4aa;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .upload-zone:hover {
+            background: rgba(0, 212, 170, 0.1);
+        }
+
+        .upload-zone.dragover {
+            background: rgba(0, 212, 170, 0.2);
+            border-color: #00ffaa;
+        }
+
+        .upload-zone input[type="file"] {
+            display: none;
+        }
+
+        .upload-zone .upload-text {
+            color: #888;
+            font-size: 1.1em;
+        }
+
+        .upload-zone .upload-subtext {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #00d4aa;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .summary-card h3 {
+            color: #00d4aa;
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+
+        .summary-card p {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        .charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-container h3 {
+            color: #00d4aa;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .transactions {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            color: #888;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .filter-group input, .filter-group select {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 8px;
+            color: #e0e0e0;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+
+        th {
+            background: #2a2a2a;
+            color: #00d4aa;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #252525;
+        }
+
+        .editable {
+            cursor: pointer;
+        }
+
+        .editable:hover {
+            background: #333;
+        }
+
+        .confidence-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+
+        .confidence-high {
+            background: #00d4aa;
+            color: #000;
+        }
+
+        .confidence-medium {
+            background: #ffa500;
+            color: #000;
+        }
+
+        .confidence-low {
+            background: #ff4444;
+            color: #000;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: #00d4aa;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #00ffaa;
+        }
+
+        .btn-secondary {
+            background: #333;
+            color: #e0e0e0;
+        }
+
+        .btn-secondary:hover {
+            background: #444;
+        }
+
+        .status-message {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        .status-success {
+            background: rgba(0, 212, 170, 0.2);
+            border: 1px solid #00d4aa;
+            color: #00d4aa;
+        }
+
+        .status-error {
+            background: rgba(255, 68, 68, 0.2);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+        }
+
+        .receipt-card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: none;
+        }
+
+        .receipt-card h3 {
+            color: #00d4aa;
+            margin-bottom: 10px;
+        }
+
+        .receipt-card .details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .receipt-card .detail {
+            background: #2a2a2a;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .receipt-card .detail strong {
+            color: #00d4aa;
+        }
+
+        @media (max-width: 768px) {
+            .charts {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .filters {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Wealthie</h1>
+            <p>AI-Powered Financial Management Platform</p>
+        </div>
+
+        <div class="card">
+            <div class="upload-zone" id="uploadZone">
+                <input type="file" id="fileInput" accept="image/*">
+                <div class="upload-text">Drop your receipt here or click to browse</div>
+                <div class="upload-subtext">Supports JPG, PNG, WebP (max 10MB)</div>
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-message" id="statusMessage"></div>
+
+        <div class="receipt-card" id="receiptCard">
+            <h3>Receipt Processed</h3>
+            <div class="details" id="receiptDetails"></div>
+        </div>
+
+        <div class="summary-cards" id="summaryCards">
+            <!-- Summary cards will be populated by JS -->
+        </div>
+
+        <div class="charts">
+            <div class="chart-container">
+                <h3>Spending by Category</h3>
+                <canvas id="categoryChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Spending by Month</h3>
+                <canvas id="monthChart"></canvas>
+            </div>
+        </div>
+
+        <div class="transactions card">
+            <div class="export-buttons">
+                <button class="btn" onclick="exportCSV()">Export CSV</button>
+                <button class="btn btn-secondary" onclick="exportJSON()">Export JSON</button>
+            </div>
+
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="categoryFilter">Category</label>
+                    <select id="categoryFilter">
+                        <option value="">All Categories</option>
+                        <option value="Food & Dining">Food & Dining</option>
+                        <option value="Groceries">Groceries</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Travel">Travel</option>
+                        <option value="Business">Business</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="dateFromFilter">Date From</label>
+                    <input type="date" id="dateFromFilter">
+                </div>
+                <div class="filter-group">
+                    <label for="dateToFilter">Date To</label>
+                    <input type="date" id="dateToFilter">
+                </div>
+                <div class="filter-group">
+                    <label for="searchFilter">Search Merchant</label>
+                    <input type="text" id="searchFilter" placeholder="Search...">
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <button class="btn" onclick="applyFilters()">Apply Filters</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="transactionsTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable('date')">Date</th>
+                            <th onclick="sortTable('merchant_name')">Merchant</th>
+                            <th onclick="sortTable('category')">Category</th>
+                            <th onclick="sortTable('total_amount')">Amount</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsBody">
+                        <!-- Transactions will be populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentReceiptId = null;
+        let transactions = [];
+        let currentSort = { column: 'created_at', order: 'desc' };
+        let currentFilters = {};
+
+        // Upload functionality
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const statusMessage = document.getElementById('statusMessage');
+        const receiptCard = document.getElementById('receiptCard');
+        const receiptDetails = document.getElementById('receiptDetails');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        async function handleFileUpload(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            progressBar.style.display = 'block';
+            progressFill.style.width = '0%';
+            showStatus('Uploading...', 'success');
+
+            try {
+                const response = await fetch('/api/receipts/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                currentReceiptId = result.receipt_id;
+                showStatus('Processing receipt...', 'success');
+
+                // Poll for status
+                pollReceiptStatus(result.receipt_id);
+
+            } catch (error) {
+                showStatus(`Upload failed: ${error.message}`, 'error');
+                progressBar.style.display = 'none';
+            }
+        }
+
+        async function pollReceiptStatus(receiptId) {
+            const poll = async () => {
+                try {
+                    const response = await fetch(`/api/receipts/${receiptId}/status`);
+                    const status = await response.json();
+
+                    if (status.status === 'completed') {
+                        showStatus('Receipt processed successfully!', 'success');
+                        progressFill.style.width = '100%';
+                        setTimeout(() => {
+                            progressBar.style.display = 'none';
+                            loadData();
+                        }, 1000);
+                    } else if (status.status === 'failed') {
+                        showStatus(`Processing failed: ${status.error_message}`, 'error');
+                        progressBar.style.display = 'none';
+                    } else {
+                        // Still processing, continue polling
+                        progressFill.style.width = Math.min(parseInt(progressFill.style.width) + 10, 90) + '%';
+                        setTimeout(poll, 2000);
+                    }
+                } catch (error) {
+                    showStatus(`Status check failed: ${error.message}`, 'error');
+                    progressBar.style.display = 'none';
+                }
+            };
+            poll();
+        }
+
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message status-${type}`;
+            statusMessage.style.display = 'block';
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        // Data loading and display
+        async function loadData() {
+            try {
+                await Promise.all([
+                    loadSummary(),
+                    loadTransactions()
+                ]);
+            } catch (error) {
+                console.error('Failed to load data:', error);
+            }
+        }
+
+        async function loadSummary() {
+            try {
+                const response = await fetch('/api/reports/summary');
+                const summary = await response.json();
+
+                const summaryCards = document.getElementById('summaryCards');
+                summaryCards.innerHTML = `
+                    <div class="summary-card">
+                        <h3>$${summary.total_spent.toFixed(2)}</h3>
+                        <p>Total Spent</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>${summary.transaction_count}</h3>
+                        <p>Transactions</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>$${summary.avg_transaction.toFixed(2)}</h3>
+                        <p>Avg Transaction</p>
+                    </div>
+                    <div class="summary-card">
+                        <h3>${Object.keys(summary.by_category).length}</h3>
+                        <p>Categories</p>
+                    </div>
+                `;
+
+                // Update charts
+                updateCategoryChart(summary.by_category);
+                updateMonthChart(summary.by_month);
+
+            } catch (error) {
+                console.error('Failed to load summary:', error);
+            }
+        }
+
+        async function loadTransactions() {
+            try {
+                const params = new URLSearchParams({
+                    ...currentFilters,
+                    sort_by: currentSort.column,
+                    sort_order: currentSort.order,
+                    limit: 100
+                });
+
+                const response = await fetch(`/api/transactions/?${params}`);
+                const data = await response.json();
+
+                transactions = data.transactions;
+                displayTransactions(transactions);
+
+            } catch (error) {
+                console.error('Failed to load transactions:', error);
+            }
+        }
+
+        function displayTransactions(transactions) {
+            const tbody = document.getElementById('transactionsBody');
+            tbody.innerHTML = '';
+
+            transactions.forEach(transaction => {
+                const confidenceClass = transaction.confidence_score > 0.8 ? 'confidence-high' :
+                                      transaction.confidence_score > 0.6 ? 'confidence-medium' : 'confidence-low';
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${new Date(transaction.date).toLocaleDateString()}</td>
+                    <td>${transaction.merchant_name}</td>
+                    <td class="editable" onclick="editCategory('${transaction.id}', '${transaction.category}')">${transaction.category}</td>
+                    <td>$${transaction.total_amount.toFixed(2)}</td>
+                    <td><span class="confidence-badge ${confidenceClass}">${(transaction.confidence_score * 100).toFixed(0)}%</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function sortTable(column) {
+            currentSort.order = currentSort.column === column && currentSort.order === 'desc' ? 'asc' : 'desc';
+            currentSort.column = column;
+            loadTransactions();
+        }
+
+        function applyFilters() {
+            currentFilters = {
+                category: document.getElementById('categoryFilter').value,
+                date_from: document.getElementById('dateFromFilter').value,
+                date_to: document.getElementById('dateToFilter').value,
+                merchant_name: document.getElementById('searchFilter').value
+            };
+            loadTransactions();
+        }
+
+        async function editCategory(transactionId, currentCategory) {
+            const newCategory = prompt('Enter new category:', currentCategory);
+            if (newCategory && newCategory !== currentCategory) {
+                try {
+                    const response = await fetch(`/api/transactions/${transactionId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'your_secret_api_key_here' // In production, get from secure source
+                        },
+                        body: JSON.stringify({ category: newCategory })
+                    });
+
+                    if (response.ok) {
+                        loadData();
+                    } else {
+                        alert('Failed to update category');
+                    }
+                } catch (error) {
+                    alert('Error updating category: ' + error.message);
+                }
+            }
+        }
+
+        async function exportCSV() {
+            try {
+                const response = await fetch('/api/reports/export/csv');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'transactions.csv';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Export failed: ' + error.message);
+            }
+        }
+
+        async function exportJSON() {
+            try {
+                const response = await fetch('/api/reports/export/json');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                a.href = url;
+                a.download = 'transactions.json';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                alert('Export failed: ' + error.message);
+            }
+        }
+
+        // Charts
+        let categoryChart, monthChart;
+
+        function updateCategoryChart(data) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            if (categoryChart) categoryChart.destroy();
+
+            categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{
+                        data: Object.values(data),
+                        backgroundColor: [
+                            '#00d4aa', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4',
+                            '#ffeaa7', '#dda0dd', '#98d8c8', '#f7dc6f', '#bb8fce'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#e0e0e0' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateMonthChart(data) {
+            const ctx = document.getElementById('monthChart').getContext('2d');
+            if (monthChart) monthChart.destroy();
+
+            const sortedMonths = Object.keys(data).sort();
+            const values = sortedMonths.map(month => data[month]);
+
+            monthChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedMonths,
+                    datasets: [{
+                        label: 'Spending',
+                        data: values,
+                        backgroundColor: '#00d4aa'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#e0e0e0' },
+                            grid: { color: '#333' }
+                        },
+                        x: {
+                            ticks: { color: '#e0e0e0' },
+                            grid: { color: '#333' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#e0e0e0' } }
+                    }
+                }
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>
