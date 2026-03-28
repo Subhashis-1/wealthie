@@ -29,7 +29,7 @@ Wealthie is a complete financial management platform that uses Google's Gemini V
 2. **Get a Gemini API Key**:
    - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
    - Create a new API key
-   - **Important**: Free tier API keys have quota limits. For production use, consider a paid plan.
+   - **Important**: Free tier API keys have quota limits.
    - Copy the key
 
 3. **Configure Environment**:
