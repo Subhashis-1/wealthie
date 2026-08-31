@@ -1,47 +1,44 @@
 import asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
-import traceback
 import logging
+import traceback
 from uuid import UUID
+
+from sqlalchemy import select, update
+
 from config import settings
+from database import async_session
 from models import Receipt, ReceiptStatus, Transaction, TransactionCategory
 from services.gemini_service import parse_receipt
 from services.image_service import preprocess_image
-from database import async_session
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("wealthie.jobs")
+job_semaphore = asyncio.Semaphore(settings.max_concurrent_jobs)
 
-# Global semaphore to limit concurrent jobs
-semaphore = asyncio.Semaphore(settings.max_concurrent_jobs)
 
-async def process_receipt_job(receipt_id: UUID, session_factory):
-    async with semaphore:
+async def process_receipt_job(receipt_id: UUID, session_factory=async_session):
+    """Process one receipt with bounded concurrency and explicit state transitions."""
+    async with job_semaphore:
         async with session_factory() as db:
             try:
-                # Update status to processing
                 await db.execute(
                     update(Receipt)
                     .where(Receipt.id == receipt_id)
-                    .values(status=ReceiptStatus.processing)
+                    .values(status=ReceiptStatus.processing, error_message=None)
                 )
                 await db.commit()
 
-                # Get receipt
                 result = await db.execute(select(Receipt).where(Receipt.id == receipt_id))
-                receipt = result.scalar_one()
+                receipt = result.scalar_one_or_none()
+                if receipt is None:
+                    logger.warning("receipt %s disappeared before processing", receipt_id)
+                    return
 
-                # Read image file
-                with open(receipt.upload_path, "rb") as f:
-                    image_bytes = f.read()
+                with open(receipt.upload_path, "rb") as image_file:
+                    image_bytes = image_file.read()
 
-                # Preprocess image
                 processed_bytes = preprocess_image(image_bytes)
-
-                # Parse with Gemini
                 parsed = await parse_receipt(processed_bytes)
 
-                # Create transaction
                 transaction = Transaction(
                     receipt_id=receipt_id,
                     merchant_name=parsed.merchant_name,
@@ -53,32 +50,20 @@ async def process_receipt_job(receipt_id: UUID, session_factory):
                     tax_amount=parsed.tax_amount,
                     payment_method=parsed.payment_method,
                     confidence_score=parsed.confidence_score,
-                    raw_gemini_response=str(parsed.model_dump_json())
+                    raw_gemini_response=parsed.model_dump_json(),
                 )
                 db.add(transaction)
+                receipt.status = ReceiptStatus.completed
+                await db.commit()
+                logger.info("receipt %s completed", receipt_id)
 
-                # Update receipt status to completed
+            except Exception as exc:
+                await db.rollback()
+                error_msg = f"{exc}\n{traceback.format_exc()}"
+                logger.exception("receipt %s failed", receipt_id)
                 await db.execute(
                     update(Receipt)
                     .where(Receipt.id == receipt_id)
-                    .values(status=ReceiptStatus.completed)
+                    .values(status=ReceiptStatus.failed, error_message=error_msg)
                 )
                 await db.commit()
-
-                logger.info(f"Successfully processed receipt {receipt_id}")
-
-            except Exception as e:
-                error_msg = f"{str(e)}\n{traceback.format_exc()}"
-                logger.error(f"Failed to process receipt {receipt_id}: {error_msg}")
-
-                # Update receipt status to failed
-                async with session_factory() as db:
-                    await db.execute(
-                        update(Receipt)
-                        .where(Receipt.id == receipt_id)
-                        .values(status=ReceiptStatus.failed, error_message=error_msg)
-                    )
-                    await db.commit()
-            finally:
-                # Ensure semaphore is released
-                pass
