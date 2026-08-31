@@ -1,79 +1,90 @@
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.orm import sessionmaker
+from contextlib import asynccontextmanager
 import logging
 import os
-from contextlib import asynccontextmanager
+import time
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from config import settings
 from database import engine
 from models import Base
 from routers.receipts import router as receipts_router
-from routers.transactions import router as transactions_router
 from routers.reports import router as reports_router
+from routers.transactions import router as transactions_router
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=getattr(logging, settings.log_level.upper(), logging.INFO),
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+logger = logging.getLogger("wealthie")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    logger.info("Creating database tables...")
+    logger.info("initializing database")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Create upload directory
     os.makedirs(settings.upload_dir, exist_ok=True)
-    logger.info(f"Upload directory: {settings.upload_dir}")
-
+    logger.info("receipt storage ready")
     yield
+    logger.info("application shutdown")
 
-    # Shutdown
-    logger.info("Shutting down...")
 
 app = FastAPI(
-    title="Wealthie",
-    description="AI-Powered Financial Management Platform",
-    version="1.0.0",
-    lifespan=lifespan
+    title="Wealthie API",
+    description="AI-assisted receipt ingestion and personal finance analytics API.",
+    version="1.1.0",
+    lifespan=lifespan,
 )
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify allowed origins
+    allow_origins=[origin.strip() for origin in settings.allowed_origins.split(",") if origin.strip()],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
-# Global exception handler
+
+@app.middleware("http")
+async def request_metrics(request: Request, call_next):
+    started = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    response.headers["X-Process-Time-Ms"] = f"{elapsed_ms:.2f}"
+    logger.info("%s %s -> %s %.2fms", request.method, request.url.path, response.status_code, elapsed_ms)
+    return response
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Global exception: {exc}", exc_info=True)
-    return {
-        "detail": "Internal server error",
-        "type": type(exc).__name__
-    }
+    logger.exception("unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
-# Mount static files
+
+@app.get("/health", tags=["system"])
+async def health_check():
+    return {"status": "ok", "service": "wealthie"}
+
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Serve index.html at root
-from fastapi.responses import FileResponse
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def read_root():
     return FileResponse("static/index.html", media_type="text/html")
 
-# Include routers
+
 app.include_router(receipts_router, prefix="/api/receipts", tags=["receipts"])
 app.include_router(transactions_router, prefix="/api/transactions", tags=["transactions"])
 app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
 
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
