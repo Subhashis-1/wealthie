@@ -1,123 +1,153 @@
-# Wealthie - AI-Powered Financial Management Platform
+# Wealthie
 
-Wealthie is a complete financial management platform that uses Google's Gemini Vision API to automatically extract transaction data from receipt images. Built with FastAPI, SQLAlchemy, and a modern vanilla JavaScript frontend.
+**AI-assisted receipt ingestion and personal finance analytics built with FastAPI.**
 
-## Features
+Wealthie turns receipt images into structured transactions, stores the normalized data, and exposes APIs for transaction management and financial reporting.
 
-- **AI Receipt Processing**: Upload receipt images and let Gemini AI extract merchant, amount, date, and categorize transactions
-- **Transaction Management**: View, filter, sort, and edit transactions
-- **Financial Analytics**: Dashboard with spending summaries, category breakdowns, and charts
-- **Data Export**: Export transactions to CSV or JSON
-- **Background Processing**: Asynchronous receipt processing with concurrency limits
-- **Modern UI**: Dark-themed, responsive dashboard with drag-and-drop uploads
+> **Project status:** actively developed. The repository is a modified derivative of the open-source [ARTHA backend](https://github.com/nilayDawn/ARTHA_backend). See [`NOTICE.md`](./NOTICE.md) for attribution and licensing information.
 
-## Tech Stack
+## Architecture
 
-- **Backend**: Python 3.11+, FastAPI, Async SQLAlchemy, SQLite
-- **AI**: Google Gemini Vision API
-- **Image Processing**: Pillow
-- **Frontend**: Vanilla HTML/CSS/JS with Chart.js
-- **Background Jobs**: FastAPI BackgroundTasks + asyncio
+```text
+Receipt Image
+     |
+     v
+Upload API -----> Receipt Record
+     |
+     v
+Bounded Background Worker
+     |
+     +--> Image Preprocessing
+     |
+     +--> Gemini Vision Extraction
+     |
+     v
+Validated Transaction
+     |
+     +--> Transaction APIs
+     +--> Analytics / Reports
+     +--> CSV / JSON Export
+```
 
-## Setup
+## Core capabilities
 
-1. **Clone and Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+- **Receipt ingestion** — validates uploaded images and stores processing state.
+- **AI extraction** — uses Gemini Vision to extract merchant, date, amount, tax, payment method, categories, and line items.
+- **Bounded concurrency** — receipt jobs are processed asynchronously with a configurable concurrency limit.
+- **Transaction management** — query, filter, update, and soft-delete financial transactions.
+- **Reporting** — spending summaries and machine-readable CSV/JSON exports.
+- **Image optimization** — preprocesses receipt images before external AI calls.
+- **Operational visibility** — request timing headers, structured application logging, and a `/health` endpoint.
 
-2. **Get a Gemini API Key**:
-   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - Create a new API key
-   - **Important**: Free tier API keys have quota limits.
-   - Copy the key
+## Technology
 
-3. **Configure Environment**:
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your GEMINI_API_KEY and API_KEY
-   ```
+| Layer | Technology |
+|---|---|
+| API | Python, FastAPI, Uvicorn |
+| Persistence | SQLAlchemy 2.x, SQLite/aiosqlite |
+| AI | Google Gemini Vision API |
+| Image processing | Pillow |
+| Validation | Pydantic / pydantic-settings |
+| Frontend | HTML, CSS, JavaScript, Chart.js |
+| Async processing | asyncio + FastAPI background processing |
 
-4. **Run the Application**:
-   ```bash
-   uvicorn main:app --reload
-   ```
+## Local setup
 
-5. **Open in Browser**:
-   - Navigate to `http://localhost:8000`
-   - The frontend will load automatically
+### 1. Create an environment
 
-## API Endpoints
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\\Scripts\\activate
+pip install -r requirements.txt
+```
+
+### 2. Configure secrets
+
+```bash
+cp .env.example .env
+```
+
+Set at least:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+API_KEY=your_application_api_key
+DATABASE_URL=sqlite+aiosqlite:///./wealthie.db
+UPLOAD_DIR=./uploads
+MAX_IMAGE_SIZE_MB=10
+MAX_CONCURRENT_JOBS=5
+ALLOWED_ORIGINS=http://localhost:8000
+LOG_LEVEL=INFO
+```
+
+Never commit `.env` or real API credentials.
+
+### 3. Run
+
+```bash
+uvicorn main:app --reload
+```
+
+Open `http://localhost:8000` and API documentation at `http://localhost:8000/docs`.
+
+## API surface
+
+### System
+
+- `GET /health` — service health check
 
 ### Receipts
-- `POST /api/receipts/upload` - Upload receipt image for processing
-- `GET /api/receipts/{id}/status` - Check processing status
-- `GET /api/receipts/` - List all receipts (paginated)
+
+- `POST /api/receipts/upload` — upload a receipt for asynchronous processing
+- `GET /api/receipts/{id}/status` — inspect processing state
+- `GET /api/receipts/` — list receipts
 
 ### Transactions
-- `GET /api/transactions/` - List transactions with filtering
-- `GET /api/transactions/{id}` - Get transaction details
-- `PUT /api/transactions/{id}` - Update transaction (requires API key)
-- `DELETE /api/transactions/{id}` - Soft delete transaction (requires API key)
+
+- `GET /api/transactions/` — query transactions
+- `GET /api/transactions/{id}` — retrieve a transaction
+- `PUT /api/transactions/{id}` — update a transaction
+- `DELETE /api/transactions/{id}` — soft-delete a transaction
 
 ### Reports
-- `GET /api/reports/summary` - Financial summary and analytics
-- `GET /api/reports/export/csv` - Export transactions as CSV
-- `GET /api/reports/export/json` - Export transactions as JSON
 
-## API Key Authentication
+- `GET /api/reports/summary` — aggregate financial metrics
+- `GET /api/reports/export/csv` — export transaction data
+- `GET /api/reports/export/json` — export transaction data as JSON
 
-Write operations (PUT/DELETE on transactions) require an `X-API-Key` header with the value from your `.env` file.
+## Engineering decisions
 
-## Supported Image Formats
+### Why bounded asynchronous processing?
 
-- JPEG, PNG, WebP (recommended)
-- Maximum file size: 10MB (configurable)
-- Images are automatically optimized before sending to Gemini
+Receipt extraction involves an external AI call, so processing it inline with the upload request would unnecessarily increase request latency. Wealthie separates ingestion from extraction and uses a semaphore to prevent unbounded concurrent API calls.
 
-## Categories
+### Why preprocess images?
 
-Transactions are automatically categorized into:
-- Food & Dining
-- Groceries
-- Transportation
-- Shopping
-- Entertainment
-- Healthcare
-- Utilities
-- Travel
-- Business
-- Other
+Receipt photos can contain unnecessary resolution and metadata. Normalizing the image before the AI request reduces payload size and makes extraction more predictable.
 
-## Development
+### Why keep processing state?
 
-The application uses:
-- Async SQLAlchemy with aiosqlite for database operations
-- Pydantic for data validation
-- Background tasks for receipt processing
-- Semaphore-based concurrency control
-- Comprehensive error handling and logging
+A receipt moves through explicit states (`pending`, `processing`, `completed`, or `failed`). This makes asynchronous work observable and allows the client to poll for completion without blocking the upload request.
 
-## Troubleshooting
+## Development roadmap
 
-### Receipt Processing Fails
-- **Quota Exceeded**: Free Gemini API keys have rate limits. Check your usage at [Google AI Studio](https://makersuite.google.com/app/apikey)
-- **Invalid API Key**: Ensure your `GEMINI_API_KEY` in `.env` is correct
-- **Model Not Available**: The app uses `gemini-2.0-flash`. If issues persist, check available models
+- [ ] PostgreSQL production profile
+- [ ] Redis-backed job queue
+- [ ] Retry policy with exponential backoff
+- [ ] Idempotency keys for receipt uploads
+- [ ] Automated API and worker tests
+- [ ] Containerized deployment
+- [ ] Per-user authentication and data isolation
+- [ ] Observability metrics for extraction latency and failure rate
 
-### Upload Issues
-- **File Type Rejected**: Only image files (JPG, PNG, WebP) are accepted
-- **File Too Large**: Maximum size is 10MB (configurable in settings)
-- **Server Errors**: Check server logs for detailed error messages
+## Attribution & license
 
-### Database Issues
-- **Tables Not Created**: The app creates tables automatically on startup
-- **Permission Errors**: Ensure write access to the working directory
+Wealthie is a modified derivative of **ARTHA backend** by `nilayDawn`:
 
-## License
+https://github.com/nilayDawn/ARTHA_backend
 
-This project is open source. Feel free to use and modify as needed.
+The upstream project is licensed under **GNU GPL v3.0**. This derivative retains the applicable GPL terms. See [`NOTICE.md`](./NOTICE.md) for the derivative-work notice.
 
----
+## Disclaimer
 
-![Wealthie Dashboard](https://via.placeholder.com/800x400/0a0a0a/00d4aa?text=Wealthie+Dashboard+Screenshot)
+Wealthie is a software project for financial-data organization and experimentation. It does not provide investment, tax, accounting, or other professional financial advice.
