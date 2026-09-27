@@ -148,8 +148,7 @@ wealthie/
 Receipt images can contain personal and payment information. Store them carefully, and review Google's Gemini terms before sending receipt data to its service. The current application does not provide user accounts or per-user data isolation; do not expose a development instance as a public multi-user service. Wealthie helps organize personal records and is not financial, tax, or accounting advice.
 
 ## Attribution and license
-
-Wealthie is distributed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html).
+Wealthie is distributed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html). 
 ---
 
 <p align="center">Built to make everyday spending easier to understand.</p>
