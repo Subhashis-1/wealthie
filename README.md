@@ -149,8 +149,7 @@ Receipt images can contain personal and payment information. Store them carefull
 
 ## Attribution and license
 
-Wealthie is distributed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html). The project is a modified derivative of [ARTHA backend by nilayDawn](https://github.com/nilayDawn/ARTHA_backend); see [`NOTICE.md`](NOTICE.md) for attribution and derivative-work details. Applicable upstream notices are retained.
-
+Wealthie is distributed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html).
 ---
 
 <p align="center">Built to make everyday spending easier to understand.</p>
