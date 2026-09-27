@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
-from typing import Optional
+from typing import Literal, Optional
 from datetime import date
 import uuid
 from models import Transaction, TransactionCategory
@@ -20,10 +20,10 @@ async def list_transactions(
     merchant_name: Optional[str] = None,
     min_amount: Optional[float] = None,
     max_amount: Optional[float] = None,
-    skip: int = 0,
-    limit: int = 10,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=10, ge=1, le=100),
     sort_by: str = "created_at",
-    sort_order: str = "desc",
+    sort_order: Literal["asc", "desc"] = "desc",
     db: AsyncSession = Depends(get_db)
 ):
     query = select(Transaction).where(Transaction.is_deleted == False)
@@ -41,20 +41,25 @@ async def list_transactions(
     if max_amount is not None:
         query = query.where(Transaction.total_amount <= max_amount)
 
-    # Sorting
-    sort_column = getattr(Transaction, sort_by, Transaction.created_at)
+    # Keep ordering to transaction fields exposed by the API.
+    sortable_columns = {
+        "date", "merchant_name", "total_amount", "created_at",
+        "category", "confidence_score",
+    }
+    if sort_by not in sortable_columns:
+        raise HTTPException(status_code=422, detail="Unsupported sort field")
+    sort_column = getattr(Transaction, sort_by)
     if sort_order == "desc":
         query = query.order_by(sort_column.desc())
     else:
         query = query.order_by(sort_column.asc())
 
+    count_query = query.with_only_columns(func.count(Transaction.id)).order_by(None).offset(None).limit(None)
+    total_result = await db.execute(count_query)
+    total = total_result.scalar_one()
+
     result = await db.execute(query.offset(skip).limit(limit))
     transactions = result.scalars().all()
-
-    total_result = await db.execute(
-        select(func.count(Transaction.id)).where(Transaction.is_deleted == False)
-    )
-    total = total_result.scalar()
 
     return PaginatedTransactions(
         transactions=[TransactionResponse.model_validate(t) for t in transactions],
