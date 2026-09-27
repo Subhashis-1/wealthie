@@ -1,13 +1,14 @@
 import google.generativeai as genai
 import base64
 import json
+from datetime import date
 from config import settings
 from schemas import ParsedReceipt, LineItem
 from typing import Optional
 
 # Initialize Gemini
 genai.configure(api_key=settings.gemini_api_key)
-model = genai.GenerativeModel('gemini-2.0-flash')
+model = genai.GenerativeModel('gemini-3.8-flash')
 
 SYSTEM_PROMPT = """You are an expert receipt parser. Analyze the receipt image and extract ALL of the following in valid JSON only. No markdown, no explanation — raw JSON only.
 
@@ -73,9 +74,11 @@ async def parse_receipt(image_bytes: bytes) -> ParsedReceipt:
                     unit_price=float(item["unit_price"])
                 ))
 
+        parsed_date = date.fromisoformat(str(data["date"]))
+
         return ParsedReceipt(
             merchant_name=str(data["merchant_name"]),
-            date=str(data["date"]),
+            date=parsed_date,
             total_amount=float(data["total_amount"]),
             currency=str(data["currency"]),
             tax_amount=float(data["tax_amount"]) if data.get("tax_amount") is not None else None,

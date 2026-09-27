@@ -1,161 +1,156 @@
 # Wealthie
 
-Wealthie is a personal finance dashboard for turning receipt photos into an organized, searchable record of everyday spending. Upload a receipt, review the extracted transaction, explore category and monthly summaries, and export your records when you need them.
+### A clearer view of your spending, one receipt at a time.
 
-The app is built for local development and personal experimentation. Receipt images are sent to Google Gemini for extraction when a Gemini API key is configured. Wealthie is not a financial, tax, or accounting adviser.
+Wealthie is a personal finance dashboard that turns receipt photos into an organized, searchable view of everyday spending. Upload a receipt, review the extracted purchase, follow spending trends, and export your records from a local personal workspace.
 
-## What you can do
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 
-- Upload JPG, PNG, WebP, and HEIC receipt images with drag and drop or the file picker.
-- Track receipt processing through pending, processing, completed, and failed states.
-- Extract merchant, purchase date, total, category, tax, payment method, line items, and confidence metadata.
-- Review and edit a transaction's merchant, date, amount, and category.
-- Search and filter the transaction history by merchant, category, and date range.
-- Compare spending over time and across categories.
-- Export transaction records as CSV or JSON.
-- Keep receipt records and transaction data in SQLite for a simple local setup.
+## Product snapshot
 
-## Dashboard
+![Wealthie dashboard showing spending totals, transaction activity, category insights, recent purchases, and the receipt inbox](docs/assets/wealthie-dashboard.png)
 
-The Wealthie interface is a responsive personal finance workspace with a spending snapshot, monthly and category charts, a paginated transaction table, and a receipt inbox. The interface is served by FastAPI from `static/index.html`; Chart.js renders the charts in the browser.
+The dashboard brings spending totals, monthly activity, category breakdowns, recent transactions, and receipt processing status into one responsive workspace.
 
-## How it works
+## Highlights
 
-```text
-Receipt image
-     |
-     v
-FastAPI upload endpoint ---> SQLite receipt record
-     |                            |
-     |                       Background task
-     |                            |
-     +----------------------> Image preparation
-                                  |
-                             Gemini extraction
-                                  |
-                        Validated transaction
-                           /              \
-                          v                v
-                 Transaction API     Reports and exports
-                          \                /
-                           v              v
-                        Wealthie dashboard
-```
+- **Receipt capture:** Upload JPG, PNG, and WebP files with drag and drop or the file picker.
+- **AI-assisted extraction:** When configured, Google Gemini reads merchant, date, total, category, tax, payment method, line items, and confidence data.
+- **Review and organize:** Track processing status, edit transaction details, and search or filter purchases by merchant, category, and date.
+- **Understand spending:** View monthly trends, category totals, and average purchase metrics.
+- **Take your data with you:** Export transaction records as CSV or JSON.
+- **Local-first storage:** Keep transaction and receipt records in SQLite with uploaded images stored on the configured local disk.
 
-The app uses FastAPI and SQLAlchemy's async API with SQLite by default. Receipt work runs as an in-process background task, with a configured concurrency limit. This keeps the setup straightforward for a single-user local app. It is not a durable queue for multi-instance or production workloads.
+## Built with
 
-## Requirements
+| Area | Technology |
+|---|---|
+| Application API | Python, FastAPI, Pydantic |
+| Persistence | SQLAlchemy async, SQLite, aiosqlite |
+| Receipt extraction | Google Gemini API |
+| Image processing | Pillow |
+| Dashboard | HTML, CSS, JavaScript, Chart.js |
+
+## Getting started
+
+### Prerequisites
 
 - Python 3.10 or newer
 - A Google Gemini API key for receipt extraction
 
-## Run locally
-
-Create and activate an environment, then install the dependencies:
+### Install and run
 
 ```bash
+git clone https://github.com/Subhashis-1/wealthie.git
+cd wealthie
 python -m venv .venv
 ```
 
-Windows PowerShell:
+Activate the environment:
 
 ```powershell
+# Windows PowerShell
 .venv\Scripts\Activate.ps1
 ```
 
-macOS or Linux:
-
 ```bash
+# macOS or Linux
 source .venv/bin/activate
 ```
 
-Install and configure:
+Install dependencies and create your local configuration:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Copy `.env.example` to `.env`:
-
 ```powershell
+# Windows PowerShell
 Copy-Item .env.example .env
 ```
 
 ```bash
+# macOS or Linux
 cp .env.example .env
 ```
 
-Edit `.env` and provide your credentials:
-
-```env
-GEMINI_API_KEY=your_gemini_api_key
-API_KEY=generate_a_private_random_key
-
-DATABASE_URL=sqlite+aiosqlite:///./wealthie.db
-UPLOAD_DIR=./uploads
-MAX_IMAGE_SIZE_MB=10
-MAX_CONCURRENT_JOBS=5
-ALLOWED_ORIGINS=http://localhost:8000
-LOG_LEVEL=INFO
-```
-
-Start the app:
+Add your Gemini key and a private API key to `.env`, then start the server:
 
 ```bash
 uvicorn main:app --reload
 ```
 
-Open [http://localhost:8000](http://localhost:8000). Interactive API documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
-
-The database and uploaded receipt images are runtime data. They are excluded from Git by `.gitignore`.
-
-## API overview
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/health` | Service health |
-| `POST` | `/api/receipts/upload` | Upload a receipt image for processing |
-| `GET` | `/api/receipts/{id}/status` | Read processing status |
-| `GET` | `/api/receipts/` | List recent receipts |
-| `GET` | `/api/transactions/` | List transactions with filters and sorting |
-| `GET` | `/api/transactions/{id}` | Read a transaction |
-| `PUT` | `/api/transactions/{id}` | Update transaction details |
-| `DELETE` | `/api/transactions/{id}` | Soft-delete a transaction |
-| `GET` | `/api/reports/summary` | Spending totals and category/month breakdowns |
-| `GET` | `/api/reports/export/csv` | Download transactions as CSV |
-| `GET` | `/api/reports/export/json` | Download transactions as JSON |
-
-Updating or deleting a transaction requires the `X-API-Key` header to match `API_KEY` in `.env`. Wealthie asks for this key when you edit or remove a transaction and keeps it only in the current browser tab's session storage. Do not use the development configuration as a public, multi-user deployment. The app does not currently provide user accounts or per-user data isolation.
+Open [http://localhost:8000](http://localhost:8000) for the dashboard or [http://localhost:8000/docs](http://localhost:8000/docs) for the interactive API documentation.
 
 ## Configuration
 
-| Variable | Purpose |
-|---|---|
-| `GEMINI_API_KEY` | Enables Gemini receipt extraction |
-| `API_KEY` | Protects transaction update and delete endpoints |
-| `DATABASE_URL` | SQLAlchemy database URL; defaults to local SQLite |
-| `UPLOAD_DIR` | Local receipt image directory |
-| `MAX_IMAGE_SIZE_MB` | Maximum accepted image size |
-| `MAX_CONCURRENT_JOBS` | Maximum in-process receipt jobs running together |
-| `ALLOWED_ORIGINS` | Comma-separated browser origins accepted by CORS |
-| `LOG_LEVEL` | Application log level |
+| Variable | Purpose | Default |
+|---|---|---|
+| `GEMINI_API_KEY` | Enables receipt extraction through Gemini | — |
+| `API_KEY` | Protects transaction update and delete endpoints | — |
+| `DATABASE_URL` | SQLAlchemy database connection | `sqlite+aiosqlite:///./wealthie.db` |
+| `UPLOAD_DIR` | Directory for uploaded receipt images | `./uploads` |
+| `MAX_IMAGE_SIZE_MB` | Maximum accepted upload size | `10` |
+| `MAX_CONCURRENT_JOBS` | Maximum in-process receipt jobs | `5` |
+| `ALLOWED_ORIGINS` | Comma-separated browser origins accepted by CORS | `http://localhost:8000` |
+| `LOG_LEVEL` | Application logging level | `INFO` |
+
+The database and uploaded receipts are local runtime data and are excluded from Git. Keep `.env` private and do not commit credentials.
+
+## How it works
+
+```text
+Receipt image → FastAPI upload → SQLite receipt record → background processing
+                                                        ↓
+Dashboard ← Reports and exports ← Transaction API ← Gemini extraction
+```
+
+The application validates and prepares receipt images, sends them to Gemini when configured, validates the extracted transaction, and makes the result available through the API and dashboard. Receipt processing uses in-process background tasks with a concurrency limit; it is intended for a single-user local setup rather than a durable multi-instance production queue.
+
+## API at a glance
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | Health status |
+| `POST` | `/api/receipts/upload` | Upload and process a receipt |
+| `GET` | `/api/receipts/` | List recent receipts |
+| `GET` | `/api/receipts/{id}/status` | Check receipt processing status |
+| `GET` | `/api/transactions/` | List and filter transactions |
+| `GET` | `/api/transactions/{id}` | Read a transaction |
+| `PUT` | `/api/transactions/{id}` | Update transaction details |
+| `DELETE` | `/api/transactions/{id}` | Soft-delete a transaction |
+| `GET` | `/api/reports/summary` | Read spending summaries |
+| `GET` | `/api/reports/export/csv` | Export transactions as CSV |
+| `GET` | `/api/reports/export/json` | Export transactions as JSON |
+
+Transaction updates and deletion require the `X-API-Key` request header. Wealthie prompts for the key and keeps it in the current browser tab's session storage.
 
 ## Project structure
 
 ```text
-Wealthie/
-├── background/       Receipt processing jobs
-├── routers/          Receipt, transaction, and reporting APIs
-├── services/         Gemini extraction and image preparation
-├── static/           Wealthie dashboard
-├── config.py         Environment-backed settings
-├── database.py       Async SQLAlchemy engine and sessions
-├── models.py         Receipt and transaction models
-├── schemas.py        API request and response schemas
-└── main.py           FastAPI application and route setup
+wealthie/
+├── background/     Receipt processing jobs
+├── routers/        Receipt, transaction, and reporting endpoints
+├── services/       Gemini extraction and image preparation
+├── static/         Dashboard interface
+├── docs/assets/    README product snapshots
+├── config.py       Environment-backed settings
+├── database.py     Async SQLAlchemy engine and sessions
+├── models.py       Receipt and transaction models
+├── schemas.py      API request and response schemas
+└── main.py         FastAPI application setup
 ```
 
+## Privacy and responsible use
 
-## Responsible use
+Receipt images can contain personal and payment information. Store them carefully, and review Google's Gemini terms before sending receipt data to its service. The current application does not provide user accounts or per-user data isolation; do not expose a development instance as a public multi-user service. Wealthie helps organize personal records and is not financial, tax, or accounting advice.
 
-Receipt images may contain personal or payment information. Store them carefully and review your Google Gemini terms before sending receipt data to the external extraction service. Wealthie is an organizer for personal records, not a substitute for professional financial advice.
+## Attribution and license
+
+Wealthie is distributed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html). The project is a modified derivative of [ARTHA backend by nilayDawn](https://github.com/nilayDawn/ARTHA_backend); see [`NOTICE.md`](NOTICE.md) for attribution and derivative-work details. Applicable upstream notices are retained.
+
+---
+
+<p align="center">Built to make everyday spending easier to understand.</p>

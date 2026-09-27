@@ -21,7 +21,7 @@ async def upload_receipt(
     db: AsyncSession = Depends(get_db)
 ):
     # Validate file type
-    allowed_extensions = {".jpg", ".jpeg", ".png", ".webp", ".heic"}
+    allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
     file_extension = Path(file.filename).suffix.lower()
     if file_extension not in allowed_extensions:
         raise HTTPException(status_code=400, detail="Invalid file type. Only image files are allowed.")

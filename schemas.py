@@ -148,7 +148,7 @@ class LineItem(BaseModel):
 
 class ParsedReceipt(BaseModel):
     merchant_name: str
-    date: str
+    date: date
     total_amount: float
     currency: str
     tax_amount: Optional[float] = None
