@@ -155,9 +155,6 @@ Wealthie/
 └── main.py           FastAPI application and route setup
 ```
 
-## Attribution and license
-
-This repository retains its existing derivative-work relationship to [ARTHA backend](https://github.com/nilayDawn/ARTHA_backend). The applicable upstream license is GNU GPL v3.0. See [`NOTICE.md`](./NOTICE.md) for the derivative-work notice and license details.
 
 ## Responsible use
 
